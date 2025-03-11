@@ -30,6 +30,7 @@ install() {
     cd "serv00-play"
     git stash
     if git pull origin main; then
+      git fetch --tags
       echo "更新完毕"
       #重新给各个脚本赋权限
       chmod +x ./start.sh
@@ -1622,8 +1623,7 @@ installAlist() {
   else
     cd "alist" || return 1
     if [ ! -e "alist" ]; then
-      # read -p "请输入使用密码:" password
-      if ! checkDownload "alist"; then
+      if ! download_from_net "alist"; then
         return 1
       fi
     fi
@@ -1734,6 +1734,20 @@ resetAdminPass() {
   extract_user_and_password "$output"
 }
 
+updateAlist() {
+  cd ${installpath}/serv00-play/alist || (echo "未安装alist" && return)
+
+  if ! check_update_from_net "alist"; then
+    return 1
+  fi
+
+  stopAlist
+  download_from_net "alist"
+  chmod +x ./alist
+  startAlist
+  echo "更新完毕!"
+}
+
 alistServ() {
   if ! checkInstalled "serv00-play"; then
     return 1
@@ -1742,11 +1756,12 @@ alistServ() {
     yellow "----------------------"
     echo "alist:"
     echo "服务状态: $(checkProcStatus alist)"
-    echo "1. 安装部署alist "
-    echo "2. 启动alist"
-    echo "3. 停掉alist"
+    echo "1. 安装部署"
+    echo "2. 启动"
+    echo "3. 停掉"
     echo "4. 重置admin密码"
-    echo "8. 卸载alist"
+    echo "5. 更新"
+    echo "8. 卸载"
     echo "9. 返回主菜单"
     echo "0. 退出脚本"
     yellow "----------------------"
@@ -1764,6 +1779,9 @@ alistServ() {
       ;;
     4)
       resetAdminPass
+      ;;
+    5)
+      updateAlist
       ;;
     8)
       uninstallAlist
@@ -2588,7 +2606,7 @@ installBurnReading() {
   domainPath="$installpath/domains/$domain/public_html"
   cd $domainPath
   echo "正在下载并安装 OneTimeMessagePHP ..."
-  if ! download_from_github_release fkj-src OneTimeMessagePHP OneTimeMessagePHP; then
+  if ! download_from_github_release fkj-src OneTimeMessagePHP OneTimeMessagePHP.zip; then
     red "下载失败!"
     return 1
   fi
@@ -2801,7 +2819,7 @@ startWebSSH() {
     stopProc "wssh"
   fi
   echo "正在启动中..."
-  cmd="nohup ./wssh --port=$port --fbidhttp=False --xheaders=False --encoding='utf-8' --delay=10  $args &"
+  cmd="nohup ./wssh --port=$port --wpintvl=30 --fbidhttp=False --xheaders=False --encoding='utf-8' --delay=10  $args &"
   eval "$cmd"
   sleep 2
   if checkProcAlive wssh; then
